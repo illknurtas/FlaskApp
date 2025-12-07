@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Run all tests
         run: pytest
 
       - name: Build Docker image
@@ -34,8 +34,52 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Push Docker image
-        run: |
-          docker tag flaskapp yourdockerhubusername/flaskapp:latest
-          docker push yourdockerhubusername/flaskapp:latest
+      - name: Push Docker image to Docker Hub
         if: success()
+        run: |
+          docker tag flaskapp tasilknur/flaskapp:latest
+          docker push tasilknur/flaskapp:latest
+
+      - name: Push Docker image to Private Registry
+        if: success()
+        run: |
+          docker tag flaskapp myprivateregistry.com/flaskapp:latest
+          docker push myprivateregistry.com/flaskapp:latest
+
+      - name: Send failure email
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.example.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USER }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          to: your-email@example.com
+          subject: "CI Workflow Failed"
+          body: "The workflow for FlaskApp failed. Check Actions logs."
+
+      - name: Send Slack notification
+        if: failure()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: 'CXXXXXXX'
+          slack-message: 'CI Workflow failed!'
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+
+  unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: pytest -m "unit"
